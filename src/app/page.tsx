@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import { useWallet } from "@/context/WalletProvider";
 import Button from "@/components/Button";
 
@@ -12,6 +12,10 @@ const HomePage: React.FC = () => {
     mockUSDCBalance,
     connectWallet,
   } = useWallet();
+
+  useEffect(() => {
+    console.log("env var check ", process.env.NEXT_PUBLIC_API_URL);
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-4">
