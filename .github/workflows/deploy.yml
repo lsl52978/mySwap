@@ -21,6 +21,12 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Inject environment variables
+        run: |
+          echo "NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}" >> .env.local
+          echo "NEXT_PUBLIC_MOCK_ERC20_ADDRESS=${{ secrets.NEXT_PUBLIC_MOCK_ERC20_ADDRESS }}" >> .env.local
+          echo "NEXT_PUBLIC_MOCK_USDC_ADDRESS=${{ secrets.NEXT_PUBLIC_MOCK_USDC_ADDRESS }}" >> .env.local
+
       - name: Build
         run: npm run build
 

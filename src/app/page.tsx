@@ -14,7 +14,12 @@ const HomePage: React.FC = () => {
   } = useWallet();
 
   useEffect(() => {
-    console.log("env var check ", process.env.NEXT_PUBLIC_API_URL);
+    console.log(
+      "env var check ",
+      process.env.NEXT_PUBLIC_API_URL,
+      process.env.NEXT_PUBLIC_MOCK_ERC20_ADDRESS,
+      process.env.NEXT_PUBLIC_MOCK_USDC_ADDRESS
+    );
   }, []);
 
   return (
