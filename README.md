@@ -1,8 +1,43 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# MySwap - Uniswap Clone
+
+This project is a decentralized exchange (DEX) UI that mimics the functionalities of Uniswap, built using [Next.js](https://nextjs.org) and deployed using GitHub Pages. The app allows users to add and remove liquidity from the exchange, simulating a basic token swap interface.
 
 ## Getting Started
 
-First, run the development server:
+Follow these steps to get the project running on your local machine:
+
+### 1. Clone the repository:
+
+```bash
+git clone https://github.com/lsl52978/mySwap.git
+cd mySwap
+```
+
+### 2. Install dependencies:
+
+Ensure you are using **Node.js version 18.18 or higher**. You can check your Node.js version with the following command:
+
+```bash
+node -v
+```
+
+If you need to update Node.js, visit [Node.js download](https://nodejs.org/) to install the required version.
+
+After verifying the Node.js version, install the dependencies using one of the following package managers:
+
+```bash
+npm install
+# or
+yarn install
+# or
+pnpm install
+# or
+bun install
+```
+
+### 3. Run the development server:
+
+Once the dependencies are installed, run the development server:
 
 ```bash
 npm run dev
@@ -14,23 +49,68 @@ pnpm dev
 bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+This will start the app at [http://localhost:3000](http://localhost:3000) on your browser. The page will auto-update as you modify the code.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 4. Start editing the app:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+To start editing the main page, modify the `app/page.tsx` file. Any changes you make will be reflected in real-time.
+
+## Environment Requirements
+
+- **Node.js**: v18.18 or higher
+- **npm**: v8 or higher (bundled with Node.js)
+
+Make sure your development environment is set up accordingly.
+
+## GitHub Pages
+
+You can view the deployed version of the app on GitHub Pages:
+
+[MySwap - GitHub Pages](https://lsl52978.github.io/mySwap/)
+
+## Features
+
+- **Add Liquidity**: Add liquidity to a Uniswap-like decentralized exchange.
+- **Remove Liquidity**: Remove liquidity from the exchange.
+- **Token Balance Check**: View the balances of the tokens you're interacting with.
+- **Transaction History**: View transaction details and statuses.
+- **Responsive Design**: A user-friendly interface that works well on both desktop and mobile devices.
 
 ## Learn More
 
-To learn more about Next.js, take a look at the following resources:
+If you'd like to learn more about Next.js or how this app works, check out these resources:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- [Next.js Documentation](https://nextjs.org/docs) - Learn about Next.js features and APIs.
+- [Learn Next.js](https://nextjs.org/learn) - An interactive Next.js tutorial for beginners.
+- [Next.js GitHub Repository](https://github.com/vercel/next.js) - Contribute and explore the official Next.js repository.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Deployment
 
-## Deploy on Vercel
+### Deploy on Vercel
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+The easiest way to deploy your Next.js app is through [Vercel](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme). It is the platform made by the creators of Next.js, and it provides seamless deployment with automatic optimizations.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+For more information on deploying Next.js projects, check out the [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying).
+
+### Deploy on GitHub Pages
+
+If you're using GitHub Pages to deploy, make sure to configure `basePath` in the `next.config.js` file if you're hosting the project under a sub-path (e.g., `https://username.github.io/repository-name`).
+
+```js
+module.exports = {
+  basePath: "/mySwap",
+};
+```
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+Feel free to customize this `README.md` with any additional details or information specific to your project.
+
+```
+
+---
+```

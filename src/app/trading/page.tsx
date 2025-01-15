@@ -3,6 +3,11 @@
 import React, { useState } from "react";
 import { useWallet } from "@/context/WalletProvider"; // 引入 useWallet
 import Button from "@/components/Button";
+import { cache, get } from "@/utils/storage";
+import { ethers } from "ethers";
+import uniswapAbi from "@/abi/SimpleUniswapV2Pair.json";
+import erc20aAbi from "@/abi/ERC20A.json";
+import usdcaAbi from "@/abi/USDCA.json";
 
 const TradingPage = () => {
   const { walletConnected, walletAddress, connectWallet } = useWallet(); // 使用 useWallet 钩子
@@ -13,11 +18,92 @@ const TradingPage = () => {
   const [fromAmount, setFromAmount] = useState("");
   const [toAmount, setToAmount] = useState("");
 
-  // Mock swap calculation function
-  const calculateSwap = (amount: string) => {
-    if (!amount) return "0.00";
-    const rate = fromToken === "MockERC20" ? 1.38 : 0.72; // Mock rate
-    return (parseFloat(amount) * rate).toFixed(2);
+  const uniswapAddress = process.env.NEXT_PUBLIC_MOCK_SWAP_ADDRESS;
+  const usdcaAddress = process.env.NEXT_PUBLIC_MOCK_USDC_ADDRESS;
+  const erc20aAddress = process.env.NEXT_PUBLIC_MOCK_ERC20_ADDRESS;
+
+  // 获取 Token Contract 和 Decimals
+  const getTokenContract = (
+    tokenAddress: string,
+    signer: ethers.Signer
+  ): { contract: ethers.Contract; decimals: number } => {
+    if (tokenAddress === usdcaAddress) {
+      return {
+        contract: new ethers.Contract(tokenAddress, usdcaAbi.abi, signer),
+        decimals: 6, // USDCA 精度为 6
+      };
+    }
+    if (tokenAddress === erc20aAddress) {
+      return {
+        contract: new ethers.Contract(tokenAddress, erc20aAbi.abi, signer),
+        decimals: 18, // ERC20A 精度为 18
+      };
+    }
+    throw new Error("Invalid token address.");
+  };
+
+  // Fetch Swap Preview
+  const fetchSwapPreview = async (amount: string) => {
+    if (!amount || parseFloat(amount) <= 0) return "0.00";
+
+    try {
+      const ethereumProvider = window.ethereum as ethers.Eip1193Provider;
+      const provider = new ethers.BrowserProvider(ethereumProvider);
+      const signer = await provider.getSigner();
+      const uniswapInterface = new ethers.Interface(uniswapAbi.abi);
+      const uniswapContract = new ethers.Contract(
+        uniswapAddress!,
+        uniswapInterface,
+        signer
+      );
+
+      const inputToken =
+        fromToken === "MockERC20" ? erc20aAddress : usdcaAddress;
+      const outputToken =
+        toToken === "MockERC20" ? erc20aAddress : usdcaAddress;
+
+      const { decimals: inputDecimals } = getTokenContract(inputToken!, signer);
+
+      const inputAmount = ethers.parseUnits(amount, inputDecimals);
+
+      const amountOut = await uniswapContract.getAmountsOut(
+        inputAmount,
+        inputToken,
+        outputToken
+      );
+      console.log("Amount out: ", amountOut);
+      const { decimals: outputDecimals } = getTokenContract(
+        outputToken!,
+        signer
+      );
+      return ethers.formatUnits(amountOut, outputDecimals);
+    } catch (error) {
+      console.error("Error fetching swap preview:", error);
+      return "0.00";
+    }
+  };
+
+  // 检查用户余额是否足够
+  const checkBalance = async (
+    tokenAddress: string,
+    requiredAmount: string
+  ): Promise<boolean> => {
+    const ethereumProvider = window.ethereum as ethers.Eip1193Provider;
+    const provider = new ethers.BrowserProvider(ethereumProvider);
+    const signer = await provider.getSigner();
+
+    const { contract, decimals } = getTokenContract(tokenAddress, signer);
+    const balance: bigint = await contract.balanceOf(walletAddress);
+
+    const requiredAmountInWei = ethers.parseUnits(requiredAmount, decimals);
+    console.log(
+      `Balance for ${tokenAddress}: ${ethers.formatUnits(
+        balance,
+        decimals
+      )}, Required: ${requiredAmount}`
+    );
+
+    return balance >= requiredAmountInWei;
   };
 
   // Handle Swap Direction
@@ -29,16 +115,87 @@ const TradingPage = () => {
   };
 
   // Handle From Amount Change
-  const handleFromAmountChange = (value: string) => {
+  const handleFromAmountChange = async (value: string) => {
     setFromAmount(value);
     setIsLoading(true);
 
     // Simulate fetching swap calculation
-    setTimeout(() => {
-      const result = calculateSwap(value);
-      setToAmount(result);
+    const result = await fetchSwapPreview(value);
+    console.log("Swap preview result:", result);
+    setToAmount(result);
+
+    setIsLoading(false);
+  };
+
+  // Handle Swap
+  const handleSwap = async () => {
+    if (!fromAmount || parseFloat(fromAmount) <= 0) return;
+
+    try {
+      setIsLoading(true);
+      const ethereumProvider = window.ethereum as ethers.Eip1193Provider;
+      const provider = new ethers.BrowserProvider(ethereumProvider);
+      const signer = await provider.getSigner();
+      const uniswapInterface = new ethers.Interface(uniswapAbi.abi);
+      const uniswapContract = new ethers.Contract(
+        uniswapAddress!,
+        uniswapInterface,
+        signer
+      );
+
+      const inputToken =
+        fromToken === "MockERC20" ? erc20aAddress : usdcaAddress;
+      const outputToken =
+        toToken === "MockERC20" ? erc20aAddress : usdcaAddress;
+
+      // 检查余额是否足够
+      const isBalanceEnough = await checkBalance(inputToken!, fromAmount);
+      if (!isBalanceEnough) {
+        alert("Insufficient token balance. Please check your wallet.");
+        setIsLoading(false);
+        return;
+      }
+
+      const { decimals: inputDecimals } = getTokenContract(inputToken!, signer);
+      const { decimals: outputDecimals } = getTokenContract(
+        outputToken!,
+        signer
+      );
+
+      const inputAmount = ethers.parseUnits(fromAmount, inputDecimals);
+      const outputAmountMin = ethers.parseUnits(toAmount, outputDecimals);
+
+      const tx = await uniswapContract.swapExactTokensForTokens(
+        inputAmount,
+        outputAmountMin,
+        inputToken,
+        outputToken,
+        walletAddress
+      );
+
+      await tx.wait();
+      alert("Swap successful!");
       setIsLoading(false);
-    }, 1000);
+
+      setFromAmount("");
+      setToAmount("");
+      const transaction = {
+        walletAddress,
+        fromToken,
+        toToken,
+        fromAmount,
+        toAmount,
+        timestamp: new Date().toISOString(),
+      };
+
+      // Get existing transactions and add the new one
+      const existingTransactions = get("transactions") || [];
+      cache("transactions", [...existingTransactions, transaction]);
+    } catch (error) {
+      console.error("Error during swap:", error);
+      setIsLoading(false);
+      alert("Swap failed. Please try again.");
+    }
   };
 
   return (
@@ -79,7 +236,7 @@ const TradingPage = () => {
           {/* To Section */}
           <div>
             <label className="block text-gray-600 text-sm font-medium">
-              To
+              To (estimated)
             </label>
             <div className="flex items-center bg-purple-100 rounded-lg p-3 mt-2">
               <div className="flex items-center space-x-2">
@@ -105,9 +262,7 @@ const TradingPage = () => {
             </Button>
           ) : (
             <Button
-              onClick={() =>
-                alert(`Swap executed for ${fromAmount} ${fromToken}`)
-              }
+              onClick={handleSwap}
               className="w-full"
               disabled={isLoading}
             >

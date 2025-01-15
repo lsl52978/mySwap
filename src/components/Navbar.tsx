@@ -6,9 +6,9 @@ import { usePathname } from "next/navigation";
 // 导航项配置
 const NAV_ITEMS = [
   { label: "Home", href: "/" },
-  { label: "Trading", href: "/trading" },
-  { label: "Liquidity", href: "/liquidity" },
-  { label: "History", href: "/history" },
+  { label: "Trading", href: "/trading/" },
+  { label: "Liquidity", href: "/liquidity/" },
+  { label: "History", href: "/history/" },
 ];
 
 const NavBar: FC = () => {
