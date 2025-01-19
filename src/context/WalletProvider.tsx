@@ -9,7 +9,9 @@ interface WalletContextType {
   walletAddress: string | null;
   mockERC20Balance: string;
   mockUSDCBalance: string;
+  mockSwapBalance: string;
   connectWallet: () => Promise<void>;
+  disconnectWallet: () => Promise<void>;
 }
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
@@ -21,6 +23,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [mockERC20Balance, setMockERC20Balance] = useState<string>("0.00");
   const [mockUSDCBalance, setMockUSDCBalance] = useState<string>("0.00");
+  const [mockSwapBalance, setMockSwapBalance] = useState<string>("0.00");
 
   // Connect wallet logic
   const connectWallet = async () => {
@@ -36,10 +39,6 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
 
       // 检查是否已有挂起的请求或已连接账户
       const accounts = await provider.send("eth_accounts", []);
-      if (accounts.length === 0) {
-        alert("No accounts found. Please connect your wallet.");
-        return;
-      }
       if (accounts.length > 0) {
         console.log("Already connected:", accounts[0]);
         setWalletConnected(true);
@@ -51,19 +50,35 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
         return;
       }
 
-      const signer = await provider.getSigner();
-      const address = await signer.getAddress();
+      // If not connected, request user to connect their wallet
+      const requestedAccounts = await ethereumProvider.request({
+        method: "eth_requestAccounts",
+      });
+      if (requestedAccounts.length === 0) {
+        alert("No accounts found. Please connect your wallet.");
+        return;
+      }
 
+      const account = requestedAccounts[0];
+      console.log("Connected account:", account);
+
+      // Save connection state
       setWalletConnected(true);
-      setWalletAddress(address);
-
-      // Save wallet connection state
+      setWalletAddress(account);
       cache("walletConnected", true);
-      cache("walletAddress", address);
+      cache("walletAddress", account);
 
-      await fetchBalances(provider, address);
+      // Fetch balances for the newly connected account
+      await fetchBalances(provider, account);
+
+      console.log("Wallet connected successfully.");
     } catch (error) {
-      console.error("Error connecting wallet:", error);
+      if ((error as { code: number }).code === 4001) {
+        alert("User rejected the connection request.");
+      } else {
+        console.error("Error connecting wallet:", error);
+        alert("Failed to connect wallet. Please try again.");
+      }
     }
   };
 
@@ -83,12 +98,19 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
         ["function balanceOf(address) view returns (uint256)"],
         provider
       );
-      const [erc20Balance, usdcBalance] = await Promise.all([
+      const ltpSwapContract = new ethers.Contract(
+        process.env.NEXT_PUBLIC_MOCK_SWAP_ADDRESS || "",
+        ["function balanceOf(address) view returns (uint256)"],
+        provider
+      );
+      const [erc20Balance, usdcBalance, ltpBalance] = await Promise.all([
         mockERC20Contract.balanceOf(address),
         mockUSDCContract.balanceOf(address),
+        ltpSwapContract.balanceOf(address),
       ]);
       setMockERC20Balance(ethers.formatUnits(erc20Balance, 18)); // MockERC20 uses 18 decimals
       setMockUSDCBalance(ethers.formatUnits(usdcBalance, 6)); // MockUSDC uses 6 decimals
+      setMockSwapBalance(ethers.formatUnits(ltpBalance, 18)); // LTP uses 18 decimals
     } catch (error) {
       console.error("Error fetching balances:", error);
     }
@@ -102,6 +124,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
       setWalletAddress(null);
       setMockERC20Balance("0.00");
       setMockUSDCBalance("0.00");
+      setMockSwapBalance("0.00");
 
       // Clear localStorage
       cache("walletConnected", false);
@@ -123,6 +146,54 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
       alert("Please switch to Sepolia network.");
     } else {
       connectWallet(); // Reconnect and fetch balances
+    }
+  };
+
+  const disconnectWallet = async () => {
+    if (typeof window.ethereum === "undefined") {
+      console.log("MetaMask is not installed");
+      return;
+    }
+
+    try {
+      const isBrowserExtension = window.ethereum.isMetaMask;
+      const ethereumProvider = window.ethereum as ethers.Eip1193Provider;
+
+      if (isBrowserExtension) {
+        // 使用 wallet_revokePermissions 正确方法断开连接
+        await ethereumProvider.request({
+          method: "wallet_revokePermissions",
+          params: [
+            {
+              eth_accounts: {},
+            },
+          ],
+        });
+        console.log("Disconnected via wallet_revokePermissions.");
+      } else {
+        // 使用 eth_requestAccounts 的特殊方法替代断开连接
+        await ethereumProvider.request({
+          method: "eth_requestAccounts",
+          params: [{ eth_accounts: {} }],
+        });
+        console.log("Disconnected via eth_requestAccounts substitute method.");
+      }
+
+      // 清除应用内的连接状态
+      setWalletConnected(false);
+      setWalletAddress(null);
+      setMockERC20Balance("0.00");
+      setMockUSDCBalance("0.00");
+      setMockSwapBalance("0.00");
+
+      // 移除本地存储
+      cache("walletConnected", false);
+      cache("walletAddress", null);
+
+      alert("Wallet disconnected successfully.");
+    } catch (error) {
+      console.error("Error disconnecting wallet:", error);
+      alert("Failed to disconnect wallet. Please try again.");
     }
   };
 
@@ -171,7 +242,9 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
         walletAddress,
         mockERC20Balance,
         mockUSDCBalance,
+        mockSwapBalance,
         connectWallet,
+        disconnectWallet,
       }}
     >
       {children}

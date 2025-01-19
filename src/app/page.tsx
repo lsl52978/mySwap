@@ -10,7 +10,9 @@ const HomePage: React.FC = () => {
     walletAddress,
     mockERC20Balance,
     mockUSDCBalance,
+    mockSwapBalance,
     connectWallet,
+    disconnectWallet,
   } = useWallet();
 
   useEffect(() => {
@@ -31,7 +33,8 @@ const HomePage: React.FC = () => {
 
         {/* Wallet Connection Status */}
         {walletConnected ? (
-          <div className="space-y-4">
+          <div className="space-y-6">
+            {/* Wallet Address */}
             <div className="text-center">
               <h2 className="text-lg font-semibold text-gray-600">
                 Connected Wallet Address:
@@ -42,7 +45,7 @@ const HomePage: React.FC = () => {
             </div>
 
             {/* Token Balances */}
-            <div className="mt-6">
+            <div>
               <h3 className="text-lg font-semibold text-gray-600">
                 Token Balances:
               </h3>
@@ -58,6 +61,22 @@ const HomePage: React.FC = () => {
                   {mockUSDCBalance}
                 </span>
               </div>
+              <div className="flex justify-between items-center mt-4">
+                <span className="text-gray-700">MOCK_LTP_TOKEN:</span>
+                <span className="text-purple-700 font-semibold">
+                  {mockSwapBalance}
+                </span>
+              </div>
+            </div>
+
+            {/* Disconnect Button */}
+            <div className="flex justify-center mt-6">
+              <Button
+                onClick={disconnectWallet}
+                className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg"
+              >
+                Disconnect Wallet
+              </Button>
             </div>
           </div>
         ) : (
