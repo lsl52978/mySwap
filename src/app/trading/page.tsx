@@ -8,6 +8,7 @@ import { ethers } from "ethers";
 import uniswapAbi from "@/abi/SimpleUniswapV2Pair.json";
 import erc20aAbi from "@/abi/ERC20A.json";
 import usdcaAbi from "@/abi/USDCA.json";
+import { MAX_UINT256 } from "@/utils/globalVariables";
 
 const TradingPage = () => {
   const { walletConnected, walletAddress, connectWallet } = useWallet(); // 使用 useWallet 钩子
@@ -114,6 +115,34 @@ const TradingPage = () => {
     setToAmount("");
   };
 
+  const ensureApproval = async (
+    account: string,
+    tokenAddress: string,
+    spender: string
+  ) => {
+    console.log("begin to approve");
+    const ethereumProvider = window.ethereum as ethers.Eip1193Provider;
+    const provider = new ethers.BrowserProvider(ethereumProvider);
+    const signer = await provider.getSigner();
+    const { contract: tokenContract } = getTokenContract(tokenAddress, signer);
+
+    try {
+      const allowance = await tokenContract.allowance(account, spender);
+      console.log(`${tokenAddress} 授权额度: ${allowance.toString()}`);
+
+      if (BigInt(allowance) === BigInt(0)) {
+        console.log(`${tokenAddress} 授权不足，开始授权...`);
+        const tx = await tokenContract.approve(spender, MAX_UINT256);
+        console.log("授权交易已提交，等待确认...", tx.hash);
+        await tx.wait();
+        console.log(`${tokenAddress} 授权成功`);
+      }
+    } catch (error) {
+      console.error(`Error ensuring approval for ${tokenAddress}:`, error);
+      throw new Error(`Failed to ensure approval for ${tokenAddress}`);
+    }
+  };
+
   // Handle From Amount Change
   const handleFromAmountChange = async (value: string) => {
     setFromAmount(value);
@@ -148,6 +177,9 @@ const TradingPage = () => {
       const outputToken =
         toToken === "MockERC20" ? erc20aAddress : usdcaAddress;
 
+      // 确保授权
+      await ensureApproval(walletAddress!, inputToken!, uniswapAddress!); // 为输入代币授权
+
       // 检查余额是否足够
       const isBalanceEnough = await checkBalance(inputToken!, fromAmount);
       if (!isBalanceEnough) {
@@ -157,23 +189,24 @@ const TradingPage = () => {
       }
 
       const { decimals: inputDecimals } = getTokenContract(inputToken!, signer);
-      const { decimals: outputDecimals } = getTokenContract(
-        outputToken!,
-        signer
-      );
+      // const { decimals: outputDecimals } = getTokenContract(
+      //   outputToken!,
+      //   signer
+      // );
 
       const inputAmount = ethers.parseUnits(fromAmount, inputDecimals);
-      const outputAmountMin = ethers.parseUnits(toAmount, outputDecimals);
+      // const outputAmountMin = ethers.parseUnits(toAmount, outputDecimals);
 
       const tx = await uniswapContract.swapExactTokensForTokens(
         inputAmount,
-        outputAmountMin,
+        0,
         inputToken,
         outputToken,
         walletAddress
       );
 
-      await tx.wait();
+      const receipt = await tx.wait();
+      console.log("Swap receipt:  ", receipt);
       alert("Swap successful!");
       setIsLoading(false);
 

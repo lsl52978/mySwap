@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Button from "@/components/Button"; // 按钮组件
 import Modal from "@/components/Modal"; // 模态框组件
 import { ethers } from "ethers";
@@ -8,10 +8,7 @@ import uniswapAbi from "@/abi/SimpleUniswapV2Pair.json";
 import erc20AAbi from "@/abi/ERC20A.json";
 import usdcaAbi from "@/abi/USDCA.json";
 import { useWallet } from "@/context/WalletProvider"; // 引入 useWallet
-
-const MAX_UINT256 = BigInt(
-  "115792089237316195423570985008687907853269984665640564039457584007913129639935"
-);
+import { MAX_UINT256 } from "@/utils/globalVariables";
 
 const LiquidityPage = () => {
   const { walletConnected, walletAddress, connectWallet } = useWallet();
@@ -27,6 +24,10 @@ const LiquidityPage = () => {
     useState<boolean>(false);
   const [handleRemoveLiquidityLoading, setHandleRemoveLiquidityLoading] =
     useState<boolean>(false);
+
+  // const [reserveUSDC, setReservUSDC] = useState<string>("0");
+  // const [reserveERC, setReservERC] = useState<string>("0");
+  const [kValue, setKValue] = useState<string>("0");
 
   const getTokenContract = (tokenAddress: string, signer: ethers.Signer) => {
     const abi =
@@ -184,6 +185,42 @@ const LiquidityPage = () => {
     }
   };
 
+  // 获取储备量
+  const fetchReserves = async () => {
+    if (!walletConnected) return;
+
+    try {
+      const ethereumProvider = window.ethereum as ethers.Eip1193Provider;
+      const provider = new ethers.BrowserProvider(ethereumProvider);
+      const signer = await provider.getSigner();
+      const uniswapContract = new ethers.Contract(
+        uniswapAddress,
+        uniswapAbi.abi,
+        signer
+      );
+
+      const [reserve0Raw, reserve1Raw] = await uniswapContract.getReserves();
+
+      const reserve0Formatted = ethers.formatUnits(reserve0Raw, 6); // USDC 精度为 6
+      const reserve1Formatted = ethers.formatUnits(reserve1Raw, 18); // ERC20 精度为 18
+
+      // setReservUSDC(reserve0Formatted);
+      // setReservERC(reserve1Formatted);
+
+      // 计算 k 值
+      const k = parseFloat(reserve0Formatted) * parseFloat(reserve1Formatted);
+      setKValue(k.toString());
+    } catch (error) {
+      console.error("Error fetching reserves:", error);
+    }
+  };
+
+  useEffect(() => {
+    if (walletConnected) {
+      fetchReserves();
+    }
+  }, [walletConnected]);
+
   return (
     <div className="min-h-screen bg-blue-50 flex items-center justify-center">
       <div className="bg-white shadow-lg rounded-lg p-6 w-full max-w-md">
@@ -206,7 +243,36 @@ const LiquidityPage = () => {
           </div>
         ) : (
           <>
-            {/* Add & Remove Buttons */}
+            {/* 储备量和 k 值展示 */}
+            <div className="bg-gray-100 p-4 rounded-lg mb-6">
+              <h2 className="text-lg font-semibold text-gray-700 mb-4">
+                Pool Reserves
+              </h2>
+              {/* <div className="flex justify-between items-center">
+                <span className="text-gray-700">USDC Reserve:</span>
+                <span className="text-purple-700 font-semibold">
+                  {reserveUSDC}
+                </span>
+              </div>
+              <div className="flex justify-between items-center mt-2">
+                <span className="text-gray-700">ERC20 Reserve:</span>
+                <span className="text-purple-700 font-semibold">
+                  {reserveERC}
+                </span>
+              </div> */}
+              <div className="flex justify-between items-center mt-2">
+                <span className="text-gray-700">k Value:</span>
+                <span className="text-purple-700 font-semibold">{kValue}</span>
+              </div>
+              <Button
+                onClick={fetchReserves}
+                className="mt-4 bg-indigo-500 hover:bg-indigo-600 w-full text-white"
+              >
+                Refresh Reserves
+              </Button>
+            </div>
+
+            {/* Add & Remove Liquidity Buttons */}
             <div className="space-y-4">
               <Button
                 onClick={() => setIsAddLiquidityOpen(true)}
